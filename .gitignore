@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Datasets (large benchmark data; not versioned).
+# Rebuild EURLEX-4K runtime pkls via: python resource/script/build_eurlex.py
+# (needs the raw EURLEX-4K download placed in resource/dataset/EURLEX-4K/)
+resource/dataset/

@@ -30,6 +30,17 @@ class SparseRetrieverHelper(Helper):
         else:
             raise Exception("Features must be TXT or KWD.")
 
+    def _get_query_features(self, sample):
+        # Bound the query length (in words) when data.max_query_words is set.
+        # Long-document corpora (e.g. EURLEX-4K: avg ~1.3k, max ~28k words/doc) make
+        # retriv's batch scoring allocate huge per-query posting gathers and OOM.
+        # Truncating only the query keeps peak RAM flat; the collection stays full.
+        text = self._get_features(sample)
+        max_words = self.params.data.get("max_query_words", None)
+        if max_words:
+            text = " ".join(text.split()[:max_words])
+        return text
+
     def _get_collection_and_queries(self, samples, fold_idx, split):
         logging.info(f"Getting collection and queries for {self.params.data.name} on fold {fold_idx} and split {split}")
         collection, queries = [], []
@@ -41,7 +52,7 @@ class SparseRetrieverHelper(Helper):
                 })
                 queries.append({
                     "id": f"q_{idx}",
-                    "text": self._get_features(samples[idx])
+                    "text": self._get_query_features(samples[idx])
                 })
         elif split == "test":
             for idx in list(set(self._load_split_ids(fold_idx, split="train")) | set(
@@ -53,7 +64,7 @@ class SparseRetrieverHelper(Helper):
             for idx in self._load_split_ids(fold_idx, split="test"):
                 queries.append({
                     "id": f"q_{idx}",
-                    "text": self._get_features(samples[idx])
+                    "text": self._get_query_features(samples[idx])
                 })
 
         return collection, queries
@@ -137,7 +148,14 @@ class SparseRetrieverHelper(Helper):
                 rtvr = self._get_sparse_retriever(collection,
                                                   index_name=f"{self.params.data.name}_{fold_idx}_SR",
                                                   model="bm25")
-                bsearch_results = rtvr.bsearch(queries=queries, cutoff=self.params.retriever.sparse.cutoff)
+                bsearch_results = rtvr.bsearch(
+                    queries=queries,
+                    cutoff=self.params.retriever.sparse.cutoff,
+                    # batch_size bounds peak RAM during scoring (memory-only knob; does
+                    # not change rankings). Needed for large corpora with long queries
+                    # such as EURLEX-4K, where retriv's default of 1000 OOMs.
+                    batch_size=self.params.retriever.sparse.get("batch_size", 1000),
+                )
 
                 # ranking by label cls
                 for cls in self.params.eval.label_cls:

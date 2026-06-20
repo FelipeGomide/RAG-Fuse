@@ -1,0 +1,35 @@
+name: EURLEX-4K
+dir: resource/dataset/EURLEX-4K/
+
+folds: [ 0 ]
+splits: [ "train", "val", "test" ]
+
+
+text_max_length: 256
+label_max_length: 16
+vocabulary_size: 10000
+
+# EURLEX documents are long (avg ~1.3k, max ~28k words). Cap the BM25 *query* length
+# so retriv's batch scoring doesn't OOM; the indexed collection keeps the full text.
+# Matches the 256-token truncation the dense encoder already applies to text.
+max_query_words: 256
+
+num_labels: 3956
+num_texts: 19314
+num_relevant_labels: 5
+
+llm:
+  prompt_opt:
+    num_targets_labels: 16
+    num_samples_per_target_label: 16
+
+batch_size: 64
+num_workers: 12
+
+label_enhancement: RAW
+pseudo_labels: apmi_pseudo_labels
+text_features_source: TXT
+
+propensity:
+  A: 0.55
+  B: 1.5

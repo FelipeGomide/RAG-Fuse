@@ -41,6 +41,7 @@ retriever:
     cutoff: 64
     num_labels: 32
     aggregation: max
+    batch_size: 1000   # queries scored at once; lower it for large/long-text corpora (e.g. EURLEX-4K) to bound RAM
   dense:
     model: RetrieverBERT
     name: ${retriever.dense.model}_${data.name}
